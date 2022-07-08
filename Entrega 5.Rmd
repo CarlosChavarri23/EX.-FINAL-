@@ -1,0 +1,452 @@
+---
+title: "Entregable ok"
+author: "Carlos Chávarri"
+date: "`r Sys.Date()`"
+output: html_document
+---
+El propósisto de la investigación es poder elaborar algún tipo de medición de los niveles de democracia, en contextos dónde exista poca información. 
+Presentar en html. ANEXO 
+La explicación. es con qué prueba nos quedamos . 
+Variables 
+hipótesis en conjunto 
+
+Es necesario cambiar el nombre de las variables . 
+Enfocarse en justificar mi análisis político: y elección de mis variables 
+leer la base desde el github  
+ 
+En este trabajo analizaremos los factores que influyen en un menor o mayor índice de democracia liberal. Utilizaremos estadíticos que buscan medir el grado de independencia o autonomía de instituciones judiciales/medios de comunicación frente al gobierno obtenidas del proyecto Varieties of Democracy realizado por la universidad of Gothenburg. 
+
+
+respeto por las instituciones , asì como durabilidad en el tiempo 
+
+El concepto de fortaleza institucionalidad como parte de un análisis del respeto por las instituciones formales, reglas de juego, así como*economic anxiety* como parte de un modelo explicativo de crímen y sociedades de baja confianza ha sido desarrollado principalmente por Wiefek (2003) y en un contexto más reciente por Miller (2018).
+
+De la misma manera, la relación entre el bienestar social y la criminalidad (o su ausencia) ha sido desarrollada por una variedad de autores, entre ellos Newman y Yeates (2008). Hemos obtenido las tasas de criminalidad por estado del portal de datos del FBI, y los indicadores de desarrollo humano e ingresos económicos del censo oficial de EEUU.
+
+En este trabajo vamos a construir 3 variables latentes de criminalidad, bienestar e ingresos; y construiremos un modelo de regresión gaussiana a partir de ellos con la criminalidad como variable dependiente. Adicionalmente, los análisis de clusterización y la limpieza de datos se encuentran en los anexos del trabajo. 
+ En
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+```{r include=FALSE}
+library(rio)
+library(DescTools)
+library(ggplot2)
+library(moments)
+library(Rmisc)
+library(e1071)
+library(psych)
+library(dplyr)
+library(gplots)
+library(vcd)
+library(PMCMRplus)
+library(nortest)
+library(car)
+library(stargazer)
+library(lm.beta)
+library(gtools)
+library(jtools)
+library(ggstance)
+library(broom.mixed)
+library(fastDummies)
+library(writexl)
+library(lmtest)
+library(polycor)
+library(ggcorrplot)
+library(matrixcalc)
+library(GPArotation)
+library(lavaan)
+library(BBmisc)
+library(cluster)
+library(factoextra)
+library(qpcR)
+```
+
+
+```{r include=FALSE}
+#Repositorio 
+link="https://github.com/CarlosChavarri23/ESTAD-STICA-II.git"
+```
+
+
+```{r include=FALSE}
+vdem = import("https://github.com/saffron29/Trabajo-Final---EST2/blob/main/V-Dem-CY-Core-v12.rds?raw=true")
+```
+
+El vdem se debe estar leyendo desde github. Poner la base así 
+
+
+
+```{r}
+str(vdem$v2x_libdem)
+```
+
+#METADATA
+
+#4. Armar la base de apoyo
+```{r include=FALSE}
+DATA1 = subset(vdem, select = c(country_name, year, v2x_libdem, v2juhcind_ord, v2juncind_ord,  v2elembaut_ord, v2mecrit_ord, v2dlcountr_ord, v2mecenefm_ord))
+```
+
+
+```{r include=FALSE}
+DATA1 = DATA1[DATA1$year==2021,]
+```
+
+```{r include=FALSE}
+row.names(DATA1)=DATA1$country_name
+```
+
+```{r include=FALSE}
+DATA1$country_name = NULL
+DATA1$year = NULL
+DATA1$v2x_libdem = NULL
+
+```
+
+```{r include=FALSE}
+names(DATA1)=c("CS_indep", "OC_indep", "OE_autn","ME_crit","CA_resp","MC_ceng" )
+```
+
+```{r include=FALSE}
+str(DATA1)
+```
+ANEXO: 
+
+Anexo 1:  
+
+### Metadata
+
+DATA1$`DL_index`= Índice de nivel macro que describen las características de la democracia                   Liberal en su nivel más alto nivel (más abstracto)
+
+DATA1$`CS_indep` = Variable de tipo ordinal que mide la frecuencia con que la corte                          suprema falla en favor del gobierno en casos que involucren al mismo,                     independiente de su opinión sincera del registro legal.     
+
+0: Always.
+1: Usuall.
+2: About half of the time.
+3: Seldom.
+4: Never.
+
+DATA1$`OC_indep` = Variable de tipo ordinal que mide la frecuencia con que las cortes                        inferiores fallan en favor del gob. saliente en casos que involucren 
+                   al mismo, independiente de su opinión sincera del registro legal.
+                   
+0: Always.
+1: Usually.
+2: About half of the time.
+3: Seldom.
+4: Never.
+                  
+          
+DATA1$`OE_autn` = Variable de tipo ordinal que mide el grado de autonomía de los Organismo                   Electorales tienen frente al gobierno para aplicar las leyes y reglas                     administrativas imparcialmente en las elecciones nacionales.
+
+0: No. El OE está controlado por el gobierno de turno, las fuerzas armadas u otros
+   cuerpo gobernante.
+1: Algo. El OE tiene cierta autonomía en algunos temas, pero en temas críticos que           influyen el resultado de las elecciones, el OE es parcial al órgano de gobierno de        facto.
+2: Ambiguo. El OE tiene cierta autonomía pero también es parcial, y no está claro a qué
+   medida en que esto influye en el resultado de la elección.
+3: Casi. El OE tiene autonomía y actúa imparcialmente casi todo el tiempo. Puede ser
+   influenciado por el órgano de gobierno de facto en algunas formas menores que no          influyen en el resultado de elecciones
+4: Sí. El OE es autónomo y aplica imparcialmente las leyes electorales y administrativas.
+   normas
+
+DATA1$`ME_crit` = Variable de tipo ordinal que mide el nivel y frecuencia de crítica de                     los principales medios impresos y de radiodifusión al gobierno.
+
+0: Ninguno.
+1: Sólo unos pocos puntos de venta marginales.
+2: Algunos medios importantes critican rutinariamente al gobierno, pero hay otros importantes
+puntos de venta que nunca lo hacen.
+3: Todos los principales medios de comunicación critican al gobierno al menos ocasionalmente
+
+DATA1$`CA_resp` =Variable de tipo ordinal que mide el grado de reconocimiento y respeto pr                  parte de las élites políticas a los contraargumentos, en momentos donde                   se están esperando cambios de política importantes.
+
+0: No se permiten contraargumentos o, si se articulan, se castigan.
+1: Se permiten contraargumentos por lo menos de algunos partidos, pero casi siempre se       ignoran.
+2: Las élites tienden a reconocer los contraargumentos pero luego los degradan               explícitamente al hacer una declaración negativa sobre ellos o los individuos y grupos    que los proponen.
+3: Las élites tienden a reconocer los contraargumentos sin hacer explícitos negativos o      positivos declaraciones sobre ellos.
+4: Las élites casi siempre reconocen los contraargumentos y los valoran explícitamente,      incluso si finalmente los rechazan en su mayor parte.
+5: Las élites casi siempre reconocen los contraargumentos y los valoran explícitamente, y
+   con frecuencia también los aceptan y cambian de posición
+
+DATA1$`MC_ceng` = Variable de tipo ordinal que busca medir el intento directo o indirecto                   por parte del gobierno de censar la iimpresión o transmisiòn de medios                    de comunicación. 
+
+0: Los intentos de censura son directos y rutinarios.
+1: Los intentos de censurar son indirectos pero no obstante rutinarios.
+2: Los intentos de censura son directos pero limitados a temas especialmente delicados.
+3: Los intentos de censura son indirectos y se limitan a temas especialmente sensibles.
+4: El gobierno rara vez intenta censurar a los principales medios de alguna manera, y        cuando tal se descubren tentativas excepcionales, los funcionarios responsables suelen    ser sancionados.
+
+#I. Análisis Factorial Exploratorio
+
+#5. Explorar las correlaciones entre las variables
+```{r include=FALSE}
+corMatrix_c = polycor::hetcor(DATA1)$correlations
+corMatrix_c
+```
+Cómo interpretar esta matriz de correlción? 
+
+
+#6. Graficar la matriz de correlaciones
+```{r}
+ggcorrplot(corMatrix_c)
+```
+
+Cómo interpretar este gráfico ? 
+
+
+No hay cuadrado en blanco,existe una buena correlación ente variables-
+
+
+
+
+
+#7. Verificar validez del análisis factorial
+#7.1. Verificar si variables se pueden factorizar 
+
+---------> Overall MSA es mayor a 0.6, por lo que el análisis factorial es factible. x2 
+ 
+```{r include=FALSE}
+psych::KMO(corMatrix_c)
+```
+#7.2. Descartar una posible matriz de identidad
+Sale FALSE (p-value NO es mayor a 0.05), por lo que el análisis factorial es factible. x2 
+```{r include=FALSE}
+cortest.bartlett(corMatrix_c, n = nrow(DATA1))$p.value>0.05
+```
+#7.3. Descartar una posible matriz singular
+Sale FALSE, por lo que el análisis factorial es factible. x2 
+```{r}
+is.singular.matrix(corMatrix_c)
+```
+
+#8. Determinar en cuántos factores se pueden agrupar las variables
+```{r}
+fa.parallel(DATA1, fm = "ML", fa = "fa")
+```
+
+Por ahora, nos sugiere agrupar nuestros resultados en uno . 
+
+
+#9. Observar las cargas factoriales y ver en qué factores se ubicaría cada variable
+```{r}
+resfa_c <- fa(DATA1, nfactors = 1, cor = "cor", rotate = "varimax", fm = "minres")
+print(resfa_c$loadings, cutoff = 0.5)
+```
+#10. Graficar cómo se agrupan las variables
+```{r}
+fa.diagram(resfa_c)
+```
+#11. Evaluar los resultados obtenidos
+#11.1. ¿Qué variables aportaron más a los factores?
+```{r}
+sort(resfa_c$communality)
+```
+#12. Observar los posibles valores proyectados
+#12.1. Para grabar en la base los puntajes de los factores
+```{r}
+DATA1$puntaje = resfa_c$scores
+```
+
+
+
+
+
+
+
+
+
+#II. Análisis Factorial Confirmatorio
+
+#13. Construir un modelo lineal 
+```{r}
+modeloc<- "factorc=~ CS_indep+OC_indep+OE_autn+ME_crit+CA_resp+MC_ceng"
+```
+
+#14. Crear un objeto para hacer las validaciones 
+
+```{r}
+cfa_fit<- cfa(modeloc, data = DATA1, std.lv = TRUE, missing = "fiml")
+```
+
+#15. Prepara los tests para las validaciones 
+```{r}
+allParamCFA= parameterEstimates(cfa_fit, standardized = T)
+allFitCFA= as.list(fitMeasures(cfa_fit))
+```
+
+#16.Ver si cada variable tiene una buena relación con su factor (p-value<0.05 indica que la variable observable tiene buena relación con su latente)
+
+```{r}
+allParamCFA[allParamCFA$op=="=~",]
+```
+#17.. El ChiSquare es NO significativo? (p_value debe ser mayor a 0.05 para que sea bueno
+
+
+No es signicativo: No hay buen indicio. 
+
+
+```{r}
+allFitCFA[c("chisq", "df", "pvalue")]
+```
+
+
+#18. El Índice Tucker Lewi es mayor a 0.9?
+
+```{r}
+allFitCFA$tli # > 0.90
+```
+#19. Ver si la raíz del error cuadrático medio de aproximación es menor a 0.05 (ver rmsea)
+```{r}
+allFitCFA[c("rmsea.ci.lower", "rmsea", "rmsea.ci.upper")]
+```
+#20. Hacer predicciones (scores) de las variables latentes
+```{r}
+scorescfa = normalize(lavPredict(cfa_fit), method = "range", margin = 2, range = c(0, 10))
+```
+
+```{r}
+DATA1$prediccion = scorescfa
+```
+
+
+Por qué utilizar cada uno de los análisis? Escojo el exploratorio: 
+
+
+
+
+
+
+#III. Clusterización o Análisis de Conglomerados
+#21. Armar una base de apoyo
+```{r}
+ACONG = subset(vdem, select = c(country_name, year, v2x_libdem, v2juhcind_ord, v2juncind_ord,  v2elembaut_ord, v2mecrit_ord, v2dlcountr_ord, v2mecenefm_ord))
+```
+
+```{r}
+ACONG = ACONG[ACONG$year==2021,]
+```
+
+```{r}
+row.names(ACONG) = ACONG$country_name
+```
+
+```{r}
+ACONG$country_name = NULL
+ACONG$year = NULL
+ACONG$v2x_libdem = NULL
+```
+
+```{r}
+names(ACONG)=c("CS_indep", "OC_indep", "OE_autn","ME_crit","CA_resp","MC_ceng" )
+```
+
+#22. Calcular las distancias entre elementos que permita agruparlos en clusters
+```{r}
+g.dist = daisy(ACONG[, c(1:6)], metric = "gower")
+```
+
+#23. Para obtener el número recomendado de clusters
+#23.1. Clusterización no jerárquica (PAM)
+```{r}
+fviz_nbclust(ACONG[, c(1:6)], pam, diss = g.dist, method = "gap_stat", k.max = 10, verbose = F)
+```
+
+*  La estrategia Pam nos sugiere que el número óptimo de clusters es 9 
+
+
+#23.2. Clusterización por agrupación (AGNES)
+```{r}
+fviz_nbclust(ACONG[, c(1:6)], hcut, diss = g.dist, method = "gap_stat", k.max = 10, verbose = F, hc_func = "agnes")
+```
+La estrategia AGNES sugiere que el número óptimo de clusters es 4. 
+#23.3. Clusterización por división (DIANA)
+```{r}
+fviz_nbclust(ACONG[, c(1:6)], hcut, diss = g.dist, method = "gap_stat", k.max = 10, verbose = F, hc_func = "diana")
+```
+La estrategia DIANA nos sugiere que el número óptimo de clusters es 4. 
+
+#24. Hacer asignación de clusters en base a número de clusters recomendados
+#24.1. Clusterización no jerárquica (PAM)
+```{r}
+res.pam = pam(g.dist, k = 4, cluster.only = F)
+ACONG$clustPT = res.pam$cluster
+```
+
+#24.2. Clusterización agrupativa (AGNES)
+```{r}
+res.agnes = hcut(g.dist, k = 4, hc_func = "agnes", hc_method = "ward.D")
+ACONG$clustAG = res.agnes$cluster
+```
+
+#24.3. Clusterización divisiva (DIANA)
+```{r}
+res.diana = hcut(g.dist, k = 4, hc_func = "diana")
+ACONG$clustDIV = res.diana$cluster
+```
+
+#25. Dar puntaje a la clusterización
+#25.1. Clusterización no jerárquica (PAM)
+```{r}
+fviz_silhouette(res.pam)
+```
+CASOS MAL AGRUPADOS 
+
+#25.2. Clusterización agrupativa (AGNES)
+```{r}
+fviz_silhouette(res.agnes)
+```
+CASO MORADO Y ROSADO MAL AGRUPADO 
+#25.3. Clusterización divisiva (DIANA)
+```{r}
+fviz_silhouette(res.diana)
+```
+Menos casos mal agrupados (Estrategia escogida)
+
+#26. Encontrar los casos mal clusterizados según cada método
+#26.1. Clusterización no jerárquica (PAM)
+```{r}
+silPAM = data.frame(res.pam$silinfo$widths)
+silPAM$country = row.names(silPAM)
+malPAM = silPAM[silPAM$sil_width<0,"country"]%>%sort() 
+```
+
+#26.2. Clusterización agrupativa (AGNES)
+```{r}
+silAGNES = data.frame(res.agnes$silinfo$widths)
+silAGNES$country = row.names(silAGNES)
+malAGNES = silAGNES[silAGNES$sil_width<0,"country"]%>%sort() 
+```
+
+#26.3. Clusterización divisiva (DIANA)
+```{r}
+silDIANA = data.frame(res.diana$silinfo$widths)
+silDIANA$country = row.names(silDIANA)
+malDIANA = silDIANA[silDIANA$sil_width<0,"country"]%>%sort() 
+```
+
+#26.4. Juntar elementos mal clusterizados en un solo data frame
+
+Por qué?
+
+```{r}
+mal_Clus = as.data.frame(qpcR:::cbind.na(malPAM, malAGNES, malDIANA))
+mal_Clus
+```
+
+#27. Graficar la mejor clusterización (DIANA)
+```{r}
+proyeccion = cmdscale(g.dist, k=2,add = T) 
+ACONG$dim1 <- proyeccion$points[,1]
+ACONG$dim2 <- proyeccion$points[,2]
+
+base = ggplot(ACONG, aes(x=dim1, y=dim2,label=row.names(ACONG))) 
+base + geom_text(size = 2, aes(color = as.factor(clustPT))) + labs(title = "DIANA") 
+```
+
