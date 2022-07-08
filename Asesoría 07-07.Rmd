@@ -1,0 +1,85 @@
+
+```{r}
+#Librerias que necesito
+library(htmltab)
+library(stringr)
+library(cluster)
+library(factoextra)
+library(stringi)
+```
+
+```{r}
+#Importando data
+link="https://es.wikipedia.org/wiki/%C3%8Dndice_de_pobreza_multidimensional"
+path='/html/body/div[3]/div[3]/div[5]/div[1]/center[2]/table'
+IPM=htmltab(doc = link, 
+              which = path,
+              encoding = "UTF-8")
+IPM
+```
+```{r}
+#LIMPIEZA 
+##Cambio de nombre las columnas
+names(IPM)=c("Pais", "IPM", "PobresXM" ,"%Pobres", "%Intensidad", "%PIngreso")
+
+## No espacios en blanco
+IPM[,]=lapply(IPM[,], trimws,whitespace = "[\\h\\v]")
+
+## Sin tildes
+IPM$Pais=stri_trans_general(IPM$Pais,"Latin-ASCII")
+
+##Reemplazar falsos NA
+IPM[,c(2:6)]= replace(IPM[,c(2:6)], IPM[,(2:6)] == "N/D", NA )
+
+## Categorización 
+IPM[,c(2:6)]= lapply(IPM[,c(2:6)], as.numeric)
+
+## NA
+IPM=na.omit(IPM)
+
+str(IPM)
+```
+```{r}
+#Calculando las distancias
+g.dist = daisy(IPM[,c(3:6)], metric="gower")
+#Particion de 3 y de 5
+pam.resultado3=pam(g.dist,3,cluster.only = F)
+pam.resultado5=pam(g.dist,5,cluster.only=F)
+
+IPM$clusterPT3=pam.resultado3$cluster
+IPM$clusterPT5=pam.resultado5$cluster
+
+#Visualizando con 3 grupos
+fviz_cluster(object = list(data=g.dist, cluster = IPM$clusterPT3),
+             geom = c("text"), 
+             ellipse.type = "convex")
+```
+```{r}
+IPM[IPM$clusterPT3 == 1, 'Pais']
+
+```
+
+
+```{r}
+#Visualizando con 5 grupos
+fviz_cluster(object = list(data=g.dist, cluster = IPM$clusterPT5),
+             geom = c("text"), 
+             ellipse.type = "convex")
+
+```
+```{r}
+#Utilizando el metodo aglomerativo y divisivo
+#aglomerativo
+res.agnes=hcut(g.dist, k = 4,hc_func='agnes',hc_method = "ward.D")
+IPM$clustAG=res.agnes$cluster
+fviz_dend(res.agnes,k=4, cex = 0.7, horiz = T)
+```
+```{r}
+#divisivo
+res.diana=hcut(g.dist, k = 4,hc_func='diana')
+fviz_dend(res.diana, cex = 0.7,horiz = T)
+```
+```{r}
+
+```
+
